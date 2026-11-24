@@ -1,0 +1,59 @@
+name: Build Felucca firmware (FM-1)
+
+# Manual trigger only (works from the GitHub mobile app / mobile site: Actions > this workflow > Run workflow).
+# FIRST PURPOSE: find out whether GitHub's runners can fetch the JieLi toolchain and the AC79 SDK and build
+# stock Felucca. ENG_SHRUTHI is NOT integrated yet, so this builds the upstream firmware unmodified.
+on:
+  workflow_dispatch:
+    inputs:
+      felucca_ref:
+        description: "Branch, tag or commit of hugelton/Felucca to build"
+        default: "main"
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04   # JieLi toolchain is Linux x86-64
+    timeout-minutes: 60
+    steps:
+      - name: Check that the download hosts are reachable
+        run: |
+          curl -sSIL --max-time 30 https://pkgman.jieliapp.com/s/linux-toolchain | head -5
+          curl -sSIL --max-time 30 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK | head -5
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hugelton/Felucca
+          ref: ${{ inputs.felucca_ref }}
+          submodules: recursive      # firmware/engines and firmware/bsp are submodules
+          path: felucca
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Python dependencies
+        run: pip install Pillow fonttools
+
+      - name: JieLi toolchain
+        working-directory: felucca
+        run: tools/get_toolchain.sh "$HOME/.jieli"
+
+      - name: JieLi AC79 SDK
+        run: git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+
+      - name: Build
+        working-directory: felucca
+        run: |
+          export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain"
+          export AC79_SDK="$HOME/fw-AC79_AIoT_SDK"
+          ./build.sh
+          ls -l build/felucca.fwsc build/felucca.bin build/loader/ota.bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: felucca-fwsc
+          path: |
+            felucca/build/felucca.fwsc
+            felucca/build/felucca.bin
+            felucca/build/loader/ota.bin
