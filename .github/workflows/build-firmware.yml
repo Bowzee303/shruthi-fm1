@@ -63,6 +63,13 @@ jobs:
           ./build.sh
           ls -l build/felucca.fwsc build/felucca.bin build/loader/ota.bin
 
+      - name: Verify the SHRUTHI engine is in the binary
+        if: ${{ inputs.with_shruthi }}
+        working-directory: felucca
+        run: |
+          for s in SHRUTHI "SAW PAIR" "FM BELL" "WAVETABLE"; do printf '%s: ' "$s"; grep -a -c "$s" build/felucca.bin; done
+          grep -a -q "SAW PAIR" build/felucca.bin
+
       - uses: actions/upload-artifact@v4
         with:
           name: felucca-fwsc
