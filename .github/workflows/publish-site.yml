@@ -11,7 +11,7 @@ on:
       deploy:
         description: "Publish to GitHub Pages (needs Settings > Pages > Source: GitHub Actions)"
         type: boolean
-        default: false
+        default: true
       felucca_ref:
         description: "Branch, tag or commit of hugelton/Felucca"
         default: "main"
