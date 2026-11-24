@@ -6,8 +6,6 @@ name: Build and publish the test site (installer + browser demo)
 # The site is always uploaded as a downloadable artifact. It is only PUBLISHED when you tick "deploy" AND
 # Settings > Pages > Source is "GitHub Actions".
 on:
-  push:
-    branches: [claude/pages-site]   # TEMPORARY: lets the new workflow be tested before it is on main
   workflow_dispatch:
     inputs:
       deploy:
