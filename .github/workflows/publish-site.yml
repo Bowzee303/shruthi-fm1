@@ -71,7 +71,7 @@ jobs:
         env:
           EMU_CFLAGS: -DFELUCCA_SHRUTHI=1
           EMU_PREVIEW: "0"
-        run: web/emu/build.sh
+        run: sh web/emu/build.sh
 
       - name: Assemble the site
         working-directory: felucca
