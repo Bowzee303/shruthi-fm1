@@ -29,7 +29,8 @@ def edit(path, old, new, count=1):
 for f in ("port/shruthi_core.c", "port/shruthi_core.h", "port/shruthi_tables.h", "port/fe/eng_shruthi.c"):
     shutil.copy(repo / f, src / pathlib.Path(f).name)
 # the firmware has no <string.h>: its own memset / memcpy are in bsp/chip/libc.c (-fno-builtin)
-decl = ("#ifdef SH_FIRMWARE\nvoid *memset(void *, int, unsigned);\nvoid *memcpy(void *, const void *, unsigned);\n"
+decl = ("#ifdef SH_FIRMWARE   /* no <string.h> in the firmware: bsp/chip/libc.c provides memset / memcpy (-fno-builtin) */\n"
+        "#undef memset\n#undef memcpy\n#define memset(d, c, n) __builtin_memset(d, c, n)\n#define memcpy(d, s, n) __builtin_memcpy(d, s, n)\n"
         "#else\n#include <string.h>\n#endif")
 edit("firmware/src/shruthi_core.c", "#include <string.h>", decl)
 edit("firmware/src/eng_shruthi.c", "#define SH_NO_FLOAT 1", "#define SH_NO_FLOAT 1\n#define SH_FIRMWARE 1")

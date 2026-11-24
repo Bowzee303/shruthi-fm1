@@ -1,0 +1,111 @@
+name: Build and publish the test site (installer + browser demo)
+
+# Builds Felucca (with the SHRUTHI engine), then makes one web site:
+#   /webapp/try/        the firmware running in the browser (no FM-1 needed)   [Emscripten build, may fail: see log]
+#   /webapp/installer/  an installer page for YOUR build (Chrome / Edge, USB MIDI)
+# The site is always uploaded as a downloadable artifact. It is only PUBLISHED when you tick "deploy" AND
+# Settings > Pages > Source is "GitHub Actions".
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Publish to GitHub Pages (needs Settings > Pages > Source: GitHub Actions)"
+        type: boolean
+        default: false
+      felucca_ref:
+        description: "Branch, tag or commit of hugelton/Felucca"
+        default: "main"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hugelton/Felucca
+          ref: ${{ inputs.felucca_ref || 'main' }}
+          submodules: recursive
+          path: felucca
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Python dependencies
+        run: pip install Pillow fonttools
+
+      - name: JieLi toolchain
+        working-directory: felucca
+        run: tools/get_toolchain.sh "$HOME/.jieli"
+
+      - name: JieLi AC79 SDK
+        run: git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+
+      - name: Add the SHRUTHI engine
+        run: python3 repo/felucca-patch/apply_shruthi.py felucca repo
+
+      - name: Build firmware
+        working-directory: felucca
+        run: |
+          export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain" AC79_SDK="$HOME/fw-AC79_AIoT_SDK" FELUCCA_SHRUTHI=1
+          ./build.sh
+          grep -a -q "SAW PAIR" build/felucca.bin
+
+      - uses: mymindstorm/setup-emsdk@v14
+
+      - name: Browser demo (Emscripten)
+        id: emu
+        continue-on-error: true
+        working-directory: felucca
+        env:
+          EMU_CFLAGS: -DFELUCCA_SHRUTHI=1
+          EMU_PREVIEW: "0"
+        run: |
+          sh web/emu/build.sh
+          for s in SHRUTHI "SAW PAIR" "FM BELL"; do printf '%s in the demo wasm: ' "$s"; grep -a -c "$s" build/emu/felucca.wasm; done
+          grep -a -q "SAW PAIR" build/emu/felucca.wasm
+
+      - name: Assemble the site
+        working-directory: felucca
+        run: |
+          python3 web/make_site.py build/felucca.fwsc shruthi-dev "$GITHUB_WORKSPACE/site"
+          if [ "${{ steps.emu.outcome }}" = "success" ]; then
+            mkdir -p "$GITHUB_WORKSPACE/site/webapp/try" && cp -r build/emu/. "$GITHUB_WORKSPACE/site/webapp/try/"
+            echo "DEMO: built"
+          else
+            echo "DEMO: FAILED to build (see the 'Browser demo' step); the site has the installer only"
+          fi
+          ls -R "$GITHUB_WORKSPACE/site" | head -40
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shruthi-site
+          path: site
+
+      - uses: actions/upload-pages-artifact@v3
+        if: ${{ inputs.deploy }}
+        with:
+          path: site
+
+  deploy:
+    if: ${{ inputs.deploy }}
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
