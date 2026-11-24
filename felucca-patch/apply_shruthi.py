@@ -73,5 +73,16 @@ edit("firmware/src/category.c", "                                  * NOISE HAT *
 edit("firmware/src/icons.c", "        {\"ADPCM\", ICON_SAMPLE},", "        {\"ADPCM\", ICON_SAMPLE},\n        {\"SHRUTHI\", ICON_WAVE},")
 edit("firmware/src/ui_menu.c", "#if FELUCCA_ADPCM\n    {\"ADPCM DSP\", MC_TITLE},",
      "#if FELUCCA_SHRUTHI\n    {\"SHRUTHI-1\", MC_TITLE},\n    {\"Emilie Gillet / GPL-3.0+\", MC_TEXT},\n    {\"\", MC_TEXT},\n#endif\n#if FELUCCA_ADPCM\n    {\"ADPCM DSP\", MC_TITLE},")
+# --- TEST ONLY: the parts at power-on play SHRUTHI (A: SAW PAIR, B: PWM PAD, C: SYNC LEAD; D stays the DRUM KIT).
+# Set -DFELUCCA_SHRUTHI_DEFAULT=0 (or delete this block) to keep Felucca's own power-on sounds.
+edit("firmware/src/core.h", "#if FELUCCA_SHRUTHI && !FELUCCA_SLICE",
+     "#ifndef FELUCCA_SHRUTHI_DEFAULT\n#define FELUCCA_SHRUTHI_DEFAULT 1   /* power-on parts A B C play SHRUTHI (engines.c TRK_DEF) */\n#endif\n#if FELUCCA_SHRUTHI && !FELUCCA_SLICE")
+edit("firmware/src/engines.c",
+     "static const uint8_t TRK_DEF[NPART][3] = {{0, 4, 0}, {ENGI_FM6, 4, 0}, {3, 0, 0}, {ENGI_DRUM, 0, 0}};",
+     "#if FELUCCA_SHRUTHI && FELUCCA_SHRUTHI_DEFAULT\n"
+     "static const uint8_t TRK_DEF[NPART][3] = {{ENGI_SHRUTHI, 0, 0}, {ENGI_SHRUTHI, 1, 0}, {ENGI_SHRUTHI, 2, 0}, {ENGI_DRUM, 0, 0}};\n"
+     "#else\n"
+     "static const uint8_t TRK_DEF[NPART][3] = {{0, 4, 0}, {ENGI_FM6, 4, 0}, {3, 0, 0}, {ENGI_DRUM, 0, 0}};\n"
+     "#endif")
 edit("tools/build.py", "\"FELUCCA_CPU2\", \"FELUCCA_ADPCM\"):", "\"FELUCCA_CPU2\", \"FELUCCA_ADPCM\", \"FELUCCA_SHRUTHI\"):")
 print("apply_shruthi: ok")
