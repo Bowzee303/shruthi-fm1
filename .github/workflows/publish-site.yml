@@ -71,7 +71,10 @@ jobs:
         env:
           EMU_CFLAGS: -DFELUCCA_SHRUTHI=1
           EMU_PREVIEW: "0"
-        run: sh web/emu/build.sh
+        run: |
+          sh web/emu/build.sh
+          for s in SHRUTHI "SAW PAIR" "FM BELL"; do printf '%s in the demo wasm: ' "$s"; grep -a -c "$s" build/emu/felucca.wasm; done
+          grep -a -q "SAW PAIR" build/emu/felucca.wasm
 
       - name: Assemble the site
         working-directory: felucca
