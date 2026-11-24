@@ -1,0 +1,20 @@
+name: Port tests (host, PC)
+
+# Manual. Restores the sources from upstream/*.zip and runs `make all` in port/ (several minutes).
+# Expected: ALL PASSED, oscillators 14520/14520, voice 512/512. Does not touch the FM-1 toolchain.
+on:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack upstream sources
+        run: |
+          mkdir src && cd src
+          for z in ../upstream/*.zip; do unzip -q "$z"; done
+      - name: make all
+        working-directory: port
+        run: make all
