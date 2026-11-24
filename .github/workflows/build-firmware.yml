@@ -10,6 +10,10 @@ on:
         description: "Branch, tag or commit of hugelton/Felucca to build"
         default: "main"
         required: true
+      with_shruthi:
+        description: "Add the SHRUTHI engine (felucca-patch/apply_shruthi.py) before building"
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -20,6 +24,10 @@ jobs:
         run: |
           curl -sSIL --max-time 30 https://pkgman.jieliapp.com/s/linux-toolchain | head -5
           curl -sSIL --max-time 30 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK | head -5
+
+      - uses: actions/checkout@v4
+        with:
+          path: repo
 
       - uses: actions/checkout@v4
         with:
@@ -42,13 +50,25 @@ jobs:
       - name: JieLi AC79 SDK
         run: git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
 
+      - name: Add the SHRUTHI engine
+        if: ${{ inputs.with_shruthi }}
+        run: python3 repo/felucca-patch/apply_shruthi.py felucca repo
+
       - name: Build
         working-directory: felucca
         run: |
           export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain"
           export AC79_SDK="$HOME/fw-AC79_AIoT_SDK"
+          if [ "${{ inputs.with_shruthi }}" = "true" ]; then export FELUCCA_SHRUTHI=1; fi
           ./build.sh
           ls -l build/felucca.fwsc build/felucca.bin build/loader/ota.bin
+
+      - name: Verify the SHRUTHI engine is in the binary
+        if: ${{ inputs.with_shruthi }}
+        working-directory: felucca
+        run: |
+          for s in SHRUTHI "SAW PAIR" "FM BELL" "WAVETABLE"; do printf '%s: ' "$s"; grep -a -c "$s" build/felucca.bin; done
+          grep -a -q "SAW PAIR" build/felucca.bin
 
       - uses: actions/upload-artifact@v4
         with:
